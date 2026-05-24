@@ -16,10 +16,5 @@
   "env": {
     "TELEGRAM_BOT_TOKEN": "@telegram_bot_token",
     "ADMIN_IDS": "@admin_ids"
-  },
-  "functions": {
-    "index.js": {
-      "maxDuration": 30
-    }
   }
 }
