@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Malvin C Sprint — Connect WhatsApp</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --green: #00e676;
+      --green-dim: #00c853;
+      --bg: #050a05;
+      --surface: #0d150d;
+      --surface2: #121f12;
+      --border: #1a2e1a;
+      --text: #e8f5e8;
+      --muted: #5a7a5a;
+      --danger: #ff5252;
+      --warn: #ffca28;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Mono', monospace;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Grid noise background ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,230,118,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,230,118,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Glow orb ── */
+    body::after {
+      content: '';
+      position: fixed;
+      top: -200px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 700px;
+      height: 700px;
+      background: radial-gradient(circle, rgba(0,230,118,0.07) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .wrap {
+      position: relative;
+      z-index: 1;
+      max-width: 560px;
+      margin: 0 auto;
+      padding: 60px 24px 80px;
+    }
+
+    /* ── Header ── */
+    header {
+      text-align: center;
+      margin-bottom: 52px;
+      animation: fadeDown 0.7s ease both;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(0,230,118,0.08);
+      border: 1px solid rgba(0,230,118,0.2);
+      border-radius: 100px;
+      padding: 6px 16px;
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--green);
+      margin-bottom: 28px;
+    }
+
+    .dot-live {
+      width: 7px; height: 7px;
+      background: var(--green);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    h1 {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: clamp(32px, 7vw, 48px);
+      line-height: 1.05;
+      letter-spacing: -0.02em;
+      margin-bottom: 14px;
+    }
+
+    h1 span { color: var(--green); }
+
+    .sub {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    /* ── Card ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      overflow: hidden;
+      animation: fadeUp 0.7s 0.15s ease both;
+    }
+
+    /* ── Tabs ── */
+    .tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tab {
+      padding: 18px;
+      text-align: center;
+      cursor: pointer;
+      font-family: 'Syne', sans-serif;
+      font-weight: 600;
+      font-size: 13px;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      transition: all 0.2s;
+      border: none;
+      background: none;
+      position: relative;
+    }
+
+    .tab.active {
+      color: var(--green);
+      background: rgba(0,230,118,0.04);
+    }
+
+    .tab.active::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--green);
+    }
+
+    .tab-icon { margin-right: 8px; }
+
+    /* ── Panel ── */
+    .panel { padding: 36px 32px; }
+
+    .panel-pane { display: none; }
+    .panel-pane.active { display: block; }
+
+    /* ── Steps ── */
+    .steps {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+
+    .step {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      padding: 14px 16px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .step-num {
+      min-width: 26px; height: 26px;
+      border-radius: 50%;
+      background: rgba(0,230,118,0.1);
+      border: 1px solid rgba(0,230,118,0.25);
+      color: var(--green);
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 11px;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    /* ── Input group ── */
+    .field {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    input[type="text"], input[type="tel"] {
+      flex: 1;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 18px;
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    input:focus {
+      border-color: rgba(0,230,118,0.4);
+      box-shadow: 0 0 0 3px rgba(0,230,118,0.07);
+    }
+
+    input::placeholder { color: var(--muted); }
+
+    /* ── Button ── */
+    .btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      padding: 16px 24px;
+      background: var(--green);
+      color: #030a03;
+      border: none;
+      border-radius: 12px;
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 15px;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn:hover { background: #33ec8a; transform: translateY(-1px); box-shadow: 0 8px 30px rgba(0,230,118,0.25); }
+    .btn:active { transform: translateY(0); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-size: 13px;
+      padding: 13px 20px;
+    }
+    .btn-outline:hover { border-color: var(--green); color: var(--green); background: rgba(0,230,118,0.05); box-shadow: none; }
+
+    /* ── QR area ── */
+    #qr-area {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      margin-top: 28px;
+      padding-top: 28px;
+      border-top: 1px solid var(--border);
+    }
+
+    #qr-area.visible { display: flex; }
+
+    #qr-box {
+      width: 220px; height: 220px;
+      background: white;
+      border-radius: 16px;
+      display: flex; align-items: center; justify-content: center;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 0 40px rgba(0,230,118,0.15);
+    }
+
+    #qr-box img { width: 100%; height: 100%; object-fit: contain; }
+
+    .qr-label {
+      font-size: 12px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    /* ── Code display ── */
+    #code-area {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      margin-top: 28px;
+      padding-top: 28px;
+      border-top: 1px solid var(--border);
+    }
+
+    #code-area.visible { display: flex; }
+
+    .code-display {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: 38px;
+      letter-spacing: 0.18em;
+      color: var(--green);
+      text-shadow: 0 0 30px rgba(0,230,118,0.4);
+      animation: glow 2s ease-in-out infinite alternate;
+    }
+
+    .code-hint {
+      font-size: 11px;
+      color: var(--muted);
+      text-align: center;
+      max-width: 260px;
+      line-height: 1.7;
+    }
+
+    .timer-bar {
+      width: 100%;
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .timer-fill {
+      height: 100%;
+      background: var(--green);
+      border-radius: 2px;
+      transition: width 1s linear;
+    }
+
+    /* ── Status message ── */
+    .status-msg {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 18px;
+      border-radius: 12px;
+      font-size: 13px;
+      margin-top: 20px;
+    }
+
+    .status-msg.show { display: flex; }
+    .status-msg.success { background: rgba(0,230,118,0.08); border: 1px solid rgba(0,230,118,0.2); color: var(--green); }
+    .status-msg.error { background: rgba(255,82,82,0.08); border: 1px solid rgba(255,82,82,0.2); color: var(--danger); }
+    .status-msg.info { background: rgba(255,202,40,0.08); border: 1px solid rgba(255,202,40,0.2); color: var(--warn); }
+
+    /* ── Spinner ── */
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2px solid rgba(3,10,3,0.3);
+      border-top-color: #030a03;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    /* ── Footer ── */
+    footer {
+      text-align: center;
+      margin-top: 40px;
+      color: var(--muted);
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      animation: fadeUp 0.7s 0.3s ease both;
+    }
+
+    footer a { color: var(--green); text-decoration: none; }
+
+    /* ── Divider ── */
+    .divider {
+      text-align: center;
+      color: var(--muted);
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin: 20px 0;
+      position: relative;
+    }
+
+    .divider::before, .divider::after {
+      content: '';
+      position: absolute;
+      top: 50%; width: 35%; height: 1px;
+      background: var(--border);
+    }
+    .divider::before { left: 0; }
+    .divider::after { right: 0; }
+
+    /* ── Connected state ── */
+    .connected-state {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      text-align: center;
+    }
+
+    .connected-state.show { display: flex; }
+
+    .checkmark-circle {
+      width: 80px; height: 80px;
+      border-radius: 50%;
+      background: rgba(0,230,118,0.1);
+      border: 2px solid var(--green);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 32px;
+      animation: popIn 0.5s ease;
+    }
+
+    /* ── Animations ── */
+    @keyframes fadeDown {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.85); }
+    }
+
+    @keyframes glow {
+      from { text-shadow: 0 0 20px rgba(0,230,118,0.3); }
+      to { text-shadow: 0 0 40px rgba(0,230,118,0.7); }
+    }
+
+    @keyframes popIn {
+      from { transform: scale(0.5); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    @media (max-width: 480px) {
+      .panel { padding: 28px 20px; }
+      .code-display { font-size: 30px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="badge">
+        <span class="dot-live"></span>
+        Malvin C Sprint
+      </div>
+      <h1>Connect Your<br /><span>WhatsApp</span></h1>
+      <p class="sub">Pair your number in seconds.<br />Made by <strong style="color:var(--text)">Handsome Tech</strong></p>
+    </header>
+
+    <div class="card">
+      <div class="tabs">
+        <button class="tab active" onclick="switchTab('phone')">
+          <span class="tab-icon">📱</span>Phone Number
+        </button>
+        <button class="tab" onclick="switchTab('qr')">
+          <span class="tab-icon">📷</span>QR Code
+        </button>
+      </div>
+
+      <!-- ── PHONE TAB ── -->
+      <div class="panel">
+        <div id="pane-phone" class="panel-pane active">
+          <div class="steps">
+            <div class="step">
+              <div class="step-num">1</div>
+              <div>Open WhatsApp → tap <strong style="color:var(--text)">⋮ Menu</strong> → <strong style="color:var(--text)">Linked Devices</strong></div>
+            </div>
+            <div class="step">
+              <div class="step-num">2</div>
+              <div>Tap <strong style="color:var(--text)">Link with phone number</strong> instead of QR</div>
+            </div>
+            <div class="step">
+              <div class="step-num">3</div>
+              <div>Enter your number below and type the 8-digit code shown in WhatsApp</div>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Your WhatsApp Number</label>
+            <input type="tel" id="phone-input" placeholder="+254700000000" />
+          </div>
+
+          <button class="btn" id="btn-phone" onclick="requestPairingCode()">
+            Get Pairing Code
+          </button>
+
+          <div id="code-area">
+            <div class="code-display" id="code-text">— — — —</div>
+            <div class="timer-bar"><div class="timer-fill" id="timer-fill"></div></div>
+            <div class="code-hint">Enter this code in WhatsApp → Linked Devices → Link with Phone Number.<br/>Code expires in <span id="timer-text">60s</span></div>
+          </div>
+
+          <div class="status-msg" id="phone-status"></div>
+        </div>
+
+        <!-- ── QR TAB ── -->
+        <div id="pane-qr" class="panel-pane">
+          <div class="steps">
+            <div class="step">
+              <div class="step-num">1</div>
+              <div>Open WhatsApp → tap <strong style="color:var(--text)">⋮ Menu</strong> → <strong style="color:var(--text)">Linked Devices</strong></div>
+            </div>
+            <div class="step">
+              <div class="step-num">2</div>
+              <div>Tap <strong style="color:var(--text)">Link a Device</strong> and point your camera at the QR below</div>
+            </div>
+          </div>
+
+          <button class="btn" id="btn-qr" onclick="requestQR()">
+            Generate QR Code
+          </button>
+
+          <div id="qr-area">
+            <div id="qr-box">
+              <img id="qr-img" src="" alt="QR Code" />
+            </div>
+            <div class="qr-label">Scan this with WhatsApp<br/>Refreshes every 30 seconds</div>
+          </div>
+
+          <div class="status-msg" id="qr-status"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Connected modal overlay ── -->
+    <div id="connected-overlay" style="display:none; position:fixed; inset:0; background:rgba(5,10,5,0.85); z-index:100; display:none; align-items:center; justify-content:center; flex-direction:column; gap:24px; text-align:center; padding:24px;">
+      <div class="checkmark-circle">✅</div>
+      <div>
+        <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:26px; margin-bottom:8px;">Connected!</div>
+        <div style="color:var(--muted); font-size:13px; line-height:1.7;">Malvin C Sprint is now linked<br/>to your WhatsApp.</div>
+      </div>
+      <button class="btn" style="max-width:220px;" onclick="document.getElementById('connected-overlay').style.display='none'">Done</button>
+    </div>
+
+    <footer>
+      <p>Malvin C Sprint &nbsp;·&nbsp; Made by <a href="#">Handsome Tech</a></p>
+      <p style="margin-top:6px; opacity:0.5;">WhatsApp Multi-Device &nbsp;·&nbsp; Deployed on Vercel</p>
+    </footer>
+  </div>
+
+  <script>
+    // ── Tab switching ──
+    function switchTab(tab) {
+      document.querySelectorAll('.tab').forEach((t, i) => {
+        t.classList.toggle('active', (i === 0 && tab === 'phone') || (i === 1 && tab === 'qr'));
+      });
+      document.getElementById('pane-phone').classList.toggle('active', tab === 'phone');
+      document.getElementById('pane-qr').classList.toggle('active', tab === 'qr');
+    }
+
+    // ── Show status ──
+    function showStatus(id, type, msg) {
+      const el = document.getElementById(id);
+      el.className = `status-msg show ${type}`;
+      el.innerHTML = `<span>${type === 'success' ? '✅' : type === 'error' ? '❌' : '⏳'}</span> ${msg}`;
+    }
+
+    function hideStatus(id) {
+      document.getElementById(id).className = 'status-msg';
+    }
+
+    // ── Set button loading ──
+    function setLoading(btnId, loading, text) {
+      const btn = document.getElementById(btnId);
+      btn.disabled = loading;
+      btn.innerHTML = loading
+        ? `<div class="spinner"></div> ${text || 'Loading...'}`
+        : text;
+    }
+
+    // ── Request pairing code ──
+    let timerInterval = null;
+
+    async function requestPairingCode() {
+      const phone = document.getElementById('phone-input').value.trim().replace(/\s+/g, '');
+      if (!phone || phone.length < 8) {
+        showStatus('phone-status', 'error', 'Enter a valid phone number with country code.');
+        return;
+      }
+
+      hideStatus('phone-status');
+      setLoading('btn-phone', true, 'Generating code...');
+      document.getElementById('code-area').classList.remove('visible');
+
+      try {
+        const res = await fetch('/api/pair/code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: phone.replace(/\D/g, '') }),
+        });
+
+        const data = await res.json();
+
+        if (data.code) {
+          const formatted = data.code.replace(/(.{4})(.{4})/, '$1-$2');
+          document.getElementById('code-text').textContent = formatted;
+          document.getElementById('code-area').classList.add('visible');
+          startTimer(60);
+          showStatus('phone-status', 'info', 'Code ready! Enter it in WhatsApp now.');
+          pollStatus();
+        } else {
+          showStatus('phone-status', 'error', data.error || 'Failed to generate code. Try again.');
+        }
+      } catch (err) {
+        showStatus('phone-status', 'error', 'Server error. Make sure the bot is running.');
+      }
+
+      setLoading('btn-phone', false, 'Get Pairing Code');
+    }
+
+    function startTimer(seconds) {
+      clearInterval(timerInterval);
+      let remaining = seconds;
+      const fill = document.getElementById('timer-fill');
+      const text = document.getElementById('timer-text');
+
+      fill.style.width = '100%';
+
+      timerInterval = setInterval(() => {
+        remaining--;
+        fill.style.width = (remaining / seconds * 100) + '%';
+        text.textContent = remaining + 's';
+        if (remaining <= 0) {
+          clearInterval(timerInterval);
+          document.getElementById('code-area').classList.remove('visible');
+          showStatus('phone-status', 'error', 'Code expired. Generate a new one.');
+        }
+      }, 1000);
+    }
+
+    // ── Request QR ──
+    let qrInterval = null;
+
+    async function requestQR() {
+      hideStatus('qr-status');
+      setLoading('btn-qr', true, 'Generating QR...');
+
+      try {
+        const res = await fetch('/api/pair/qr');
+        const data = await res.json();
+
+        if (data.qr) {
+          document.getElementById('qr-img').src = data.qr;
+          document.getElementById('qr-area').classList.add('visible');
+          showStatus('qr-status', 'info', 'QR ready! Scan within 30 seconds.');
+
+          // Auto refresh QR every 28s
+          clearInterval(qrInterval);
+          qrInterval = setInterval(async () => {
+            const r2 = await fetch('/api/pair/qr');
+            const d2 = await r2.json();
+            if (d2.qr) document.getElementById('qr-img').src = d2.qr;
+          }, 28000);
+
+          pollStatus();
+        } else if (data.status === 'connected') {
+          showConnected();
+        } else {
+          showStatus('qr-status', 'error', data.error || 'Could not generate QR. Try again.');
+        }
+      } catch (err) {
+        showStatus('qr-status', 'error', 'Server error. Make sure the bot is running.');
+      }
+
+      setLoading('btn-qr', false, 'Generate QR Code');
+    }
+
+    // ── Poll connection status ──
+    let pollTimer
