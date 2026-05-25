@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js"
+    "bot": "node bot.js",
+    "dev": "nodemon bot.js"
   },
   "dependencies": {
     "@whiskeysockets/baileys": "^6.7.9",
@@ -24,4 +25,4 @@
   },
   "author": "Handsome Tech",
   "license": "MIT"
-  }
+}
