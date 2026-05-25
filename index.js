@@ -5,67 +5,69 @@
 
 const express = require("express");
 const path = require("path");
-const { startWhatsApp } = require("./lib/whatsapp");
-const { startTelegramBot } = require("./lib/telegram");
-const { router: pairRouter } = require("./lib/pairApi");
 
 const app = express();
 app.use(express.json());
 
-// ── Serve the pairing website ──
+// Serve the pairing website
 app.use(express.static(path.join(__dirname, "public")));
 
-// ── Pairing API routes ──
-app.use("/api/pair", pairRouter);
-
-// ── Telegram webhook (Vercel) ──
+// Telegram webhook (receives updates from Telegram)
 app.post("/api/telegram", async (req, res) => {
-  const { telegramBot } = require("./lib/telegram");
-  if (telegramBot) telegramBot.processUpdate(req.body);
+  try {
+    const { telegramBot } = require("./lib/telegram");
+    if (telegramBot) telegramBot.processUpdate(req.body);
+  } catch (e) {}
   res.sendStatus(200);
 });
 
-// ── Status endpoint ──
+// Status endpoint
 app.get("/api/status", (req, res) => {
-  const { getWhatsAppStatus } = require("./lib/whatsapp");
   res.json({
-    whatsapp: getWhatsAppStatus(),
-    telegram: "connected",
+    status: "online",
     bot: "Malvin C Sprint",
     author: "Handsome Tech",
+    note: "Bot engine runs on Railway/Render — this is the web UI only",
   });
 });
 
-// ── Catch-all → serve the pairing site ──
+// Pairing API — proxies to bot server
+app.post("/api/pair/code", async (req, res) => {
+  const BOT_SERVER = process.env.BOT_SERVER_URL;
+  if (!BOT_SERVER) {
+    return res.status(503).json({ error: "Bot server URL not configured. Set BOT_SERVER_URL env var." });
+  }
+  try {
+    const axios = require("axios");
+    const response = await axios.post(`${BOT_SERVER}/api/pair/code`, req.body, { timeout: 15000 });
+    res.json(response.data);
+  } catch (err) {
+    res.status(500).json({ error: "Could not reach bot server." });
+  }
+});
+
+app.get("/api/pair/qr", async (req, res) => {
+  const BOT_SERVER = process.env.BOT_SERVER_URL;
+  if (!BOT_SERVER) {
+    return res.status(503).json({ error: "Bot server URL not configured. Set BOT_SERVER_URL env var." });
+  }
+  try {
+    const axios = require("axios");
+    const response = await axios.get(`${BOT_SERVER}/api/pair/qr`, { timeout: 15000 });
+    res.json(response.data);
+  } catch (err) {
+    res.status(500).json({ error: "Could not reach bot server." });
+  }
+});
+
+// Catch-all
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
 const PORT = process.env.PORT || 3000;
-
-async function main() {
-  try {
-    console.log("╔══════════════════════════════════════╗");
-    console.log("║       MALVIN C SPRINT STARTING       ║");
-    console.log("║         Made by Handsome Tech        ║");
-    console.log("╚══════════════════════════════════════╝");
-
-    await startTelegramBot();
-    console.log("✅ Telegram bot started");
-
-    await startWhatsApp();
-    console.log("✅ WhatsApp engine started");
-
-    app.listen(PORT, () => {
-      console.log(`✅ Server running → http://localhost:${PORT}`);
-      console.log(`🌐 Pairing site → http://localhost:${PORT}`);
-    });
-  } catch (err) {
-    console.error("❌ Fatal error:", err);
-    process.exit(1);
-  }
-}
-
-main();
+app.listen(PORT, () => {
+  console.log(`✅ Malvin C Sprint web UI running on port ${PORT}`);
+});
 
 module.exports = app;
